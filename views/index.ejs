@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Reddit Scraper Pro</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <svg viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.74c.69 0 1.25.56 1.25 1.25a1.25 1.25 0 0 1-2.5 0 1.25 1.25 0 0 1 1.25-1.25zm-9.71 1.71c.98 0 1.77.79 1.77 1.77 0 .98-.79 1.77-1.77 1.77s-1.77-.79-1.77-1.77c0-.98.79-1.77 1.77-1.77zm7.06 1.36c-3.53 0-6.43 2.61-6.92 6h-.03v2c0 .41.34.75.75.75h2.98v3.03c0 .41.34.75.75.75h2.28c.41 0 .75-.34.75-.75v-3.03h1.4c2.09 0 3.8-1.7 3.8-3.8 0-2.09-1.7-3.8-3.8-3.8zm0 5.54c-.97 0-1.75-.78-1.75-1.75s.78-1.75 1.75-1.75 1.75.78 1.75 1.75-.78 1.75-1.75 1.75z"/>
+      </svg>
+      Reddit Scraper Pro
+    </h1>
+
+    <form id="scraperForm">
+      <div class="form-group">
+        <label for="subreddit">Subreddit a analizar</label>
+        <input 
+          type="text" 
+          id="subreddit" 
+          name="subreddit" 
+          placeholder="Ej: programming"
+          autocomplete="off"
+          required
+        >
+      </div>
+
+      <div class="button-group">
+        <button type="submit">🚀 Iniciar Scraping</button>
+        <button type="button" class="secondary" onclick="resetResults()">🔄 Reiniciar</button>
+      </div>
+    </form>
+
+    <div id="loading" class="loading-container">
+      <div class="loader"></div>
+      <p class="loading-text">Analizando contenido del subreddit...</p>
+    </div>
+
+    <div class="results-container" style="display: none;">
+      <h2>Tendencias principales</h2>
+      <div class="summary-intro">
+        Aquí tienes un resumen de los 10 títulos más relevantes:
+      </div>
+      <ol class="summary-list" id="resultsList"></ol>
+    </div>
+
+    <div id="errorContainer" class="error-message" style="display: none;"></div>
+  </div>
+
+  <script>
+    document.getElementById('scraperForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const loading = document.getElementById('loading');
+      const resultsContainer = document.querySelector('.results-container');
+      const errorContainer = document.getElementById('errorContainer');
+      
+      // Reset UI
+      resultsContainer.style.display = 'none';
+      errorContainer.style.display = 'none';
+      loading.style.display = 'flex';
+
+      const formData = {
+        subreddit: document.getElementById('subreddit').value.trim(),
+        outputFile: 'titulos.txt',
+        maxPosts: 50,
+        scrolls: 10
+      };
+
+      try {
+        const response = await fetch('/scrape', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        const items = data.summary.split('\n')
+          .filter(item => item.trim())
+          .map(item => {
+            const cleanItem = item.replace(/^\d+\.\s*/, '');
+            return `<li>${cleanItem}</li>`;
+          }).join('');
+
+        document.getElementById('resultsList').innerHTML = items;
+        resultsContainer.style.display = 'block';
+
+      } catch (error) {
+        errorContainer.textContent = `❌ Error: ${error.message}`;
+        errorContainer.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    });
+
+    function resetResults() {
+      document.getElementById('subreddit').value = '';
+      document.getElementById('resultsList').innerHTML = '';
+      document.querySelector('.results-container').style.display = 'none';
+      document.getElementById('errorContainer').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
