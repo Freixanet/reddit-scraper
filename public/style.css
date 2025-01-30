@@ -1,13 +1,13 @@
 :root {
-    --reddit-orange: #FF4500; /* Color principal de Reddit */
-    --reddit-dark: #1A1A1B; /* Fondo oscuro */
-    --reddit-light: #F6F7F8; /* Color claro para contrastes */
-    --reddit-blue: #0079D3; /* Color de enlaces y botones secundarios */
-    --reddit-border: #343536; /* Bordes sutiles */
-    --reddit-text: #D7DADC; /* Color del texto principal */
-    --reddit-text-secondary: #818384; /* Color del texto secundario */
-    --reddit-hover: #3A3A3C; /* Color ajustado para mayor contraste en efectos hover */
-    --neon-effect: rgba(255, 69, 0, 0.15); /* Efecto de resplandor para interacciones */
+    --reddit-orange: #FF4500;
+    --reddit-dark: #1A1A1B;
+    --reddit-light: #F6F7F8;
+    --reddit-blue: #0079D3;
+    --reddit-border: #343536;
+    --reddit-text: #FFFFFF;
+    --reddit-text-secondary: #A8A8A8;
+    --reddit-hover: #3A3A3C;
+    --neon-effect: rgba(255, 69, 0, 0.15);
 }
 
 * {
@@ -98,10 +98,15 @@ button {
     transition: all 0.3s ease;
 }
 
-button:hover {
+button:hover:not(:disabled) {
     background: #FF5714;
     transform: translateY(-2px);
     box-shadow: 0px 4px 10px rgba(255, 69, 0, 0.3);
+}
+
+button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .loading-container {
@@ -114,6 +119,10 @@ button:hover {
     align-items: center;
     gap: 1.5rem;
     z-index: 1000;
+    background: rgba(0,0,0,0.9);
+    padding: 2rem;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
 }
 
 .loader {
@@ -149,4 +158,13 @@ button:hover {
 
 .summary-list li:last-child {
     border-bottom: none;
+}
+
+.error-message {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border: 1px solid #ff4444;
 }
