@@ -2,7 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="viewport" content="width=device-width, maximum-scale=5.0">
+  <meta name="description" content="Descubre las últimas tendencias con Reddit Scraper Pro, optimizado con IA para ofrecerte los insights más relevantes.">
+  <meta property="og:title" content="Reddit Scraper Pro">
+  <meta property="og:description" content="Analiza Subreddits y obtén resúmenes con IA.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tusitio.com">
+  <meta property="og:image" content="https://tusitio.com/images/preview.png">
   <title>Reddit Scraper Pro</title>
   <link rel="stylesheet" href="/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,6 +33,7 @@
           autocomplete="off"
           required
           pattern="^[a-zA-Z0-9_-]+$"
+          aria-label="Introduce el nombre del subreddit sin espacios ni símbolos especiales"
         >
       </div>
       
@@ -41,7 +48,7 @@
     </div>
     
     <% if (error) { %>
-      <div class="error-message">
+      <div class="error-message" role="alert" aria-live="assertive">
         <p><%= error %></p>
       </div>
     <% } %>
@@ -59,6 +66,7 @@
   </div>
 
   <script>
+    // Mostrar una pantalla de carga mientras se procesa la solicitud
     document.getElementById('scraperForm').addEventListener('submit', function(event) {
       const subredditInput = document.getElementById('subreddit');
       if (!subredditInput.checkValidity()) {

@@ -17,7 +17,7 @@
 }
 
 body {
-    background: var(--reddit-dark);
+    background: linear-gradient(0deg, #1A1A1B, #2B2B2D);
     color: var(--reddit-text);
     font-family: 'Inter', system-ui, sans-serif;
     line-height: 1.6;
@@ -32,7 +32,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 800px;
+    max-width: 900px;
     background: var(--reddit-dark);
     border-radius: 8px;
     border: 1px solid var(--reddit-border);
@@ -154,10 +154,15 @@ button:disabled {
 .summary-list li {
     padding: 0.8rem;
     border-bottom: 1px solid var(--reddit-border);
+    transition: background 0.2s ease;
 }
 
 .summary-list li:last-child {
     border-bottom: none;
+}
+
+.summary-list li:hover {
+    background: var(--reddit-hover);
 }
 
 .error-message {
