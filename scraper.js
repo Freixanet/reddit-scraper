@@ -8,7 +8,6 @@ dotenv.config();
 
 let browser;
 
-// Manejadores para cierre limpio
 async function cleanup() {
   if (browser) {
     console.log("Cerrando navegador...");
@@ -28,7 +27,7 @@ const openai = new OpenAI({
 async function scrapeReddit(subreddit, outputFile = 'titulos.txt', maxPosts = 50, scrolls = 10) {
   console.log("Iniciando scraping de Reddit...");
   browser = await puppeteer.launch({
-    headless: false,
+    headless: "new", // Navegador en segundo plano
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     defaultViewport: null,
   });
@@ -72,8 +71,13 @@ async function scrapeReddit(subreddit, outputFile = 'titulos.txt', maxPosts = 50
       const newTitles = await page.evaluate((currentCount) => {
         return Array.from(document.querySelectorAll('a[slot="title"]'))
           .slice(currentCount)
-          .map(el => el.textContent.trim())
-          .filter(title => !title.toLowerCase().includes('highlights'));
+          .map(el => {
+            const title = el.textContent.trim();
+            return title.length >= 15 && 
+                   title.split(' ').length >= 3 &&
+                   !title.toLowerCase().includes('highlights') ? title : null;
+          })
+          .filter(title => title);
       }, postsCount);
 
       if (newTitles.length > 0) {
@@ -91,7 +95,7 @@ async function scrapeReddit(subreddit, outputFile = 'titulos.txt', maxPosts = 50
     if (titles.length > 0) {
       fs.writeFileSync(outputFile, titles.join("\n"));
       console.log(`Títulos guardados en ${outputFile}`);
-      const summary = await generateSummary(titles.join('. '));
+      const summary = await generateSummary(titles, subreddit);
       return summary;
     } else {
       const message = "No se encontraron títulos para analizar";
@@ -117,29 +121,57 @@ async function scrapeReddit(subreddit, outputFile = 'titulos.txt', maxPosts = 50
   }
 }
 
-async function generateSummary(text) {
+async function generateSummary(titles, subreddit) {
   try {
+    const cleanTitles = titles
+      .map(title => title.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ¿?¡! ]/g, ''))
+      .filter(title => title.split(' ').length >= 3)
+      .filter((v, i, a) => a.indexOf(v) === i);
+
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4',
       messages: [
         { 
           role: 'system', 
-          content: 'Eres un asistente que resume títulos de Reddit en español. Proporciona una lista numerada con los 10 más relevantes.' 
+          content: `Eres traductor profesional y analista de tendencias. Sigue estos pasos:
+          1. TRADUCE al español de España manteniendo significado y contexto
+          2. ANALIZA relevancia para el subreddit r/${subreddit}
+          3. GENERA lista numerada con formato:
+             "Título adaptado (Categoría) - Explicación contextual (12-15 palabras)"
+          
+          Categorías válidas: Tecnología, Negocios, Cultura, Educación, Salud, Política, Medio Ambiente, Entretenimiento, Deportes, Otros`
         },
-        { 
-          role: 'user', 
-          content: `Analiza estos títulos y genera un resumen conciso con los 10 más relevantes: ${text}` 
+        {
+          role: 'user',
+          content: `Subreddit: r/${subreddit}
+          
+          Títulos a procesar (${cleanTitles.length}):
+          ${cleanTitles.slice(0, 100).join('\n')}`
         }
       ],
-      max_tokens: 200,
-      temperature: 0.7,
+      max_tokens: 600,
+      temperature: 0.25
     });
 
-    return completion.choices[0].message.content;
+    return validateSummary(completion.choices[0].message.content);
   } catch (error) {
     console.error("Error generando resumen:", error.message);
     return "No se pudo generar el resumen";
   }
+}
+
+function validateSummary(summary) {
+  const items = summary.split('\n')
+    .filter(line => line.match(/^\d+\.\s.+(\(.+\))\s-\s.+/))
+    .slice(0, 10);
+
+  if (items.length < 10) {
+    const placeholder = (index) => 
+      `${index}. Análisis no disponible - título no cumplió los criterios`;
+    return Array.from({length: 10}, (_, i) => placeholder(i+1)).join('\n');
+  }
+  
+  return items.join('\n');
 }
 
 export { scrapeReddit };

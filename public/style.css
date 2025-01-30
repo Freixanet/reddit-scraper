@@ -203,11 +203,11 @@
     font-size: 1.5rem;
     color: var(--reddit-orange);
     position: relative;
-    padding-left: 2.5rem;
+    /* padding-left: 2.5rem; */
   }
   
   .results-container h2::before {
-    content: '🔥';
+    /* content: '🔥'; */
     position: absolute;
     left: 1rem;
     top: 50%;
