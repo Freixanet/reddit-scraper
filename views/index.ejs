@@ -9,7 +9,12 @@
 </head>
 <body>
   <div class="container">
-    <h1>Reddit Scraper Pro</h1>
+    <h1>
+      <svg viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.74c.69 0 1.25.56 1.25 1.25a1.25 1.25 0 0 1-2.5 0 1.25 1.25 0 0 1 1.25-1.25zm-9.71 1.71c.98 0 1.77.79 1.77 1.77 0 .98-.79 1.77-1.77 1.77s-1.77-.79-1.77-1.77c0-.98.79-1.77 1.77-1.77zm7.06 1.36c-3.53 0-6.43 2.61-6.92 6h-.03v2c0 .41.34.75.75.75h2.98v3.03c0 .41.34.75.75.75h2.28c.41 0 .75-.34.75-.75v-3.03h1.4c2.09 0 3.8-1.7 3.8-3.8 0-2.09-1.7-3.8-3.8-3.8zm0 5.54c-.97 0-1.75-.78-1.75-1.75s.78-1.75 1.75-1.75 1.75.78 1.75 1.75-.78 1.75-1.75 1.75z"/>
+      </svg>
+      Reddit Scraper Pro
+    </h1>
     
     <form id="scraperForm" method="POST" action="/scrape">
       <div class="form-group">
@@ -21,8 +26,7 @@
           placeholder="Ej: programming"
           autocomplete="off"
           required
-          pattern="^[a-zA-Z0-9_]+$"  <!-- Asegura que solo se ingresen caracteres permitidos -->
-          title="Solo se permiten letras, números y guiones bajos"
+          pattern="^[a-zA-Z0-9_]+$"
         >
       </div>
       
@@ -48,7 +52,7 @@
         <h2>Tendencias principales</h2>
         <ul class="summary-list">
           <% summary.forEach(item => { %>
-            <li><%= item %></li>  <!-- Lista de tendencias obtenidas del scraping -->
+            <li><%= item %></li>
           <% }) %>
         </ul>
       </div>
@@ -58,15 +62,11 @@
   <script>
     document.getElementById('scraperForm').addEventListener('submit', function(event) {
       const subredditInput = document.getElementById('subreddit');
-      
-      // Verifica que el input cumpla con los requisitos antes de enviar el formulario
       if (!subredditInput.checkValidity()) {
         event.preventDefault();
         alert(subredditInput.validationMessage);
         return;
       }
-      
-      // Muestra la animación de carga mientras se realiza el scraping
       document.getElementById('loading').style.display = 'flex';
     });
   </script>

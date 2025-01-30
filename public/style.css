@@ -34,7 +34,7 @@ body {
     width: 100%;
     max-width: 800px;
     background: var(--reddit-dark);
-    border-radius: 8px; /* Reducción del radio del borde para un diseño más moderno */
+    border-radius: 8px;
     border: 1px solid var(--reddit-border);
     box-shadow: 0 12px 24px rgba(0,0,0,0.3);
     margin: 0 auto;
@@ -52,6 +52,7 @@ h1 {
 
 .form-group {
     margin-bottom: 1.5rem;
+    text-align: center;
 }
 
 label {
@@ -79,9 +80,15 @@ input:focus {
     box-shadow: 0 0 0 3px var(--neon-effect);
 }
 
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
 button {
-    flex: 1;
-    padding: 1rem;
+    padding: 1rem 2rem;
     border: none;
     border-radius: 8px;
     background: var(--reddit-orange);
@@ -94,7 +101,7 @@ button {
 button:hover {
     background: #FF5714;
     transform: translateY(-2px);
-    box-shadow: 0px 4px 10px rgba(255, 69, 0, 0.3); /* Agregar una ligera sombra para mejorar la percepción de interactividad */
+    box-shadow: 0px 4px 10px rgba(255, 69, 0, 0.3);
 }
 
 .loading-container {
@@ -123,7 +130,7 @@ button:hover {
 }
 
 .results-container {
-    background: rgba(0,0,0,0.35); /* Aumentar opacidad para mejorar la legibilidad en fondos oscuros */
+    background: rgba(0,0,0,0.35);
     margin: 2rem 0;
     border-radius: 8px;
     border: 1px solid var(--reddit-border);
