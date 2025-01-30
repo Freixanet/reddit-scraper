@@ -1,13 +1,18 @@
+// scraper.js - Mejorado con comentarios
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import { setTimeout } from 'timers/promises';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import randomUseragent from 'random-useragent';
+import proxyChain from 'proxy-chain';
 
-dotenv.config();
+dotenv.config(); // Cargar las variables de entorno
 
 let browser;
+const PROXIES = ['http://proxy1.com', 'http://proxy2.com']; // Lista de proxies para evitar bloqueos
 
+// Función para cerrar el navegador en caso de que el proceso termine inesperadamente
 async function cleanup() {
   if (browser) {
     console.log("Cerrando navegador...");
@@ -17,161 +22,99 @@ async function cleanup() {
   process.exit(0);
 }
 
+// Manejo de señales del sistema para cerrar el navegador correctamente
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Configuración de la API de OpenAI
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+/**
+ * Función principal para hacer scraping en Reddit
+ * @param {string} subreddit - El subreddit a analizar
+ * @param {string} outputFile - Archivo donde se guardarán los títulos extraídos
+ * @param {number} maxPosts - Número máximo de posts a extraer
+ * @param {number} scrolls - Número de desplazamientos en la página
+ */
 async function scrapeReddit(subreddit, outputFile = 'titulos.txt', maxPosts = 50, scrolls = 10) {
   console.log("Iniciando scraping de Reddit...");
+  
+  // Seleccionar un proxy aleatorio y anonimizarlo
+  const proxyUrl = PROXIES[Math.floor(Math.random() * PROXIES.length)];
+  const anonymizedProxy = await proxyChain.anonymizeProxy(proxyUrl);
+
+  // Lanzar el navegador con el proxy configurado
   browser = await puppeteer.launch({
-    headless: "new", // Navegador en segundo plano
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: "new", // Ejecutar en modo sin interfaz gráfica
+    args: ["--no-sandbox", "--disable-setuid-sandbox", `--proxy-server=${anonymizedProxy}`],
     defaultViewport: null,
   });
 
   const page = await browser.newPage();
-
   try {
-    console.log("Configurando user agent...");
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    );
-
+    await page.setUserAgent(randomUseragent.getRandom()); // Asignar un user agent aleatorio para evitar bloqueos
     console.log(`Navegando a /r/${subreddit}...`);
-    await page.goto(`https://www.reddit.com/r/${subreddit}/`, {
-      waitUntil: "networkidle0",
-      timeout: 30000,
-    });
+    await page.goto(`https://www.reddit.com/r/${subreddit}/`, { waitUntil: "networkidle0", timeout: 30000 });
 
+    // Verificar si Reddit ha bloqueado la IP
     const checkIfBlocked = async () => {
-      return await page.evaluate(() => {
-        return document.querySelector('body')?.innerText.includes('Access Denied');
-      });
+      return await page.evaluate(() => document.body?.innerText.includes('Access Denied') || document.body?.innerText.includes('robot check'));
     };
 
     if (await checkIfBlocked()) {
-      console.log("Bloqueado por Reddit. Reintentando en 5 minutos...");
-      await setTimeout(300000);
-      await page.reload({ waitUntil: "networkidle0", timeout: 30000 });
+      console.log("⚠️ Bloqueado por Reddit. Cambiando proxy...");
+      return scrapeReddit(subreddit, outputFile, maxPosts, scrolls); // Reintentar con otro proxy
     }
 
-    await page.waitForFunction(() => document.querySelectorAll('a[slot="title"]').length > 0, { timeout: 10000 });
+    await page.waitForSelector('a[slot="title"]', { timeout: 10000 });
 
-    let postsCount = 0;
-    let titles = [];
-
-    for (let i = 0; i < scrolls && postsCount < maxPosts; i++) {
-      console.log(`Desplazando... Posts recolectados: ${postsCount}`);
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await setTimeout(3000);
-
-      const newTitles = await page.evaluate((currentCount) => {
+    let titles = new Set();
+    for (let i = 0; i < scrolls && titles.size < maxPosts; i++) {
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); // Desplazar la página hacia abajo
+      await setTimeout(2000); // Esperar a que carguen nuevos posts
+      
+      // Extraer los títulos de los posts
+      const newTitles = await page.evaluate(() => {
         return Array.from(document.querySelectorAll('a[slot="title"]'))
-          .slice(currentCount)
-          .map(el => {
-            const title = el.textContent.trim();
-            return title.length >= 15 && 
-                   title.split(' ').length >= 3 &&
-                   !title.toLowerCase().includes('highlights') ? title : null;
-          })
-          .filter(title => title);
-      }, postsCount);
-
-      if (newTitles.length > 0) {
-        titles = [...titles, ...newTitles];
-        postsCount = titles.length;
-      } else {
-        console.log("No se detectaron nuevos títulos. Intentando otro desplazamiento...");
-      }
-
-      if (postsCount >= maxPosts || newTitles.length === 0) break;
+          .map(el => el.textContent.trim())
+          .filter(title => title.length >= 15 && title.split(' ').length >= 3);
+      });
+      newTitles.forEach(title => titles.add(title)); // Agregar títulos a la lista (sin duplicados)
     }
 
-    console.log(`📌 ${postsCount} títulos encontrados`);
-    
-    if (titles.length > 0) {
-      fs.writeFileSync(outputFile, titles.join("\n"));
-      console.log(`Títulos guardados en ${outputFile}`);
-      const summary = await generateSummary(titles, subreddit);
-      return summary;
-    } else {
-      const message = "No se encontraron títulos para analizar";
-      console.log(message);
-      return message;
-    }
-
+    console.log(`📌 ${titles.size} títulos encontrados`);
+    fs.writeFileSync(outputFile, Array.from(titles).join("\n")); // Guardar títulos en un archivo
+    console.log(`Títulos guardados en ${outputFile}`);
+    return await generateSummary([...titles], subreddit);
   } catch (error) {
-    console.error("❌ Error durante el scraping:", error.stack || error);
-    if (page) {
-      console.log("URL de la página:", page.url());
-      console.log("Título de la página:", await page.title().catch(() => "No se pudo obtener el título"));
-    }
-    throw error;
+    console.error("❌ Error en scraping:", error);
+    return "Error al obtener títulos";
   } finally {
-    try {
-      if (page && !page.isClosed()) await page.close();
-      if (browser) await browser.close();
-      console.log("Limpieza completada");
-    } catch (cleanupError) {
-      console.error("Error durante la limpieza:", cleanupError);
-    }
+    if (page && !page.isClosed()) await page.close();
+    if (browser) await browser.close();
+    console.log("Limpieza completada");
   }
 }
 
+/**
+ * Genera un resumen de los títulos obtenidos usando OpenAI
+ * @param {Array} titles - Lista de títulos extraídos
+ * @param {string} subreddit - Nombre del subreddit analizado
+ */
 async function generateSummary(titles, subreddit) {
   try {
-    const cleanTitles = titles
-      .map(title => title.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ¿?¡! ]/g, ''))
-      .filter(title => title.split(' ').length >= 3)
-      .filter((v, i, a) => a.indexOf(v) === i);
-
+    // Limpiar los títulos de caracteres especiales
+    const cleanTitles = titles.map(title => title.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ¿?¡! ]/g, ''));
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
-      messages: [
-        { 
-          role: 'system', 
-          content: `Eres traductor profesional y analista de tendencias. Sigue estos pasos:
-          1. TRADUCE al español de España manteniendo significado y contexto
-          2. ANALIZA relevancia para el subreddit r/${subreddit}
-          3. GENERA lista numerada con formato:
-             "Título adaptado (Categoría) - Explicación contextual (12-15 palabras)"
-          
-          Categorías válidas: Tecnología, Negocios, Cultura, Educación, Salud, Política, Medio Ambiente, Entretenimiento, Deportes, Otros`
-        },
-        {
-          role: 'user',
-          content: `Subreddit: r/${subreddit}
-          
-          Títulos a procesar (${cleanTitles.length}):
-          ${cleanTitles.slice(0, 100).join('\n')}`
-        }
-      ],
-      max_tokens: 600,
-      temperature: 0.25
+      messages: [{ role: 'system', content: `Resume los siguientes títulos en un listado breve para r/${subreddit}` },
+                 { role: 'user', content: cleanTitles.join('\n') }]
     });
-
-    return validateSummary(completion.choices[0].message.content);
+    return completion.choices[0].message.content;
   } catch (error) {
-    console.error("Error generando resumen:", error.message);
-    return "No se pudo generar el resumen";
+    console.error("❌ Error en OpenAI:", error);
+    return "Error al generar resumen";
   }
-}
-
-function validateSummary(summary) {
-  const items = summary.split('\n')
-    .filter(line => line.match(/^\d+\.\s.+(\(.+\))\s-\s.+/))
-    .slice(0, 10);
-
-  if (items.length < 10) {
-    const placeholder = (index) => 
-      `${index}. Análisis no disponible - título no cumplió los criterios`;
-    return Array.from({length: 10}, (_, i) => placeholder(i+1)).join('\n');
-  }
-  
-  return items.join('\n');
 }
 
 export { scrapeReddit };
